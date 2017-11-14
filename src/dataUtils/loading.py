@@ -16,6 +16,7 @@ FEATURE_SIZE = 21
 
 NEG_MULTIPLIER = 50
 MIN_NEGS = 5
+HARD_NEGS = 5
 
 
 class DataLoader(object):
@@ -118,7 +119,7 @@ class DataLoader(object):
         # what percentage of the user's orders include the product?
         # is it more than prob_thresh?
         order_prob = times_ordered / float(last_order_num)
-        prob_thresh = 0.10
+        prob_thresh = 0.25
         above_thresh = np.array((order_prob > prob_thresh), dtype=np.float32)
         below_thresh = np.array((order_prob <= prob_thresh), dtype=np.float32)
         more_features[:, 4] = above_thresh
@@ -267,7 +268,7 @@ class DataLoader(object):
 
             # ordered, but not reordered!
             all_ordered = self.user_histories[user_id].keys() - 1
-            not_reordered = np.setdiff1d(all_ordered, products)
+            not_reordered = np.setdiff1d(all_ordered, products)[:HARD_NEGS]
 
             products_to_sample = np.concatenate((products,
                                                  added_negatives))
@@ -285,14 +286,14 @@ class DataLoader(object):
         return feature_matrix, one_hot_label
 
 
-    def load_batch(self, batch_size=1):
+    def load_batch(self, batch_size=1, all_samples=False):
         ''' load in a single batch of order data '''
 
         features, labels = np.empty((0, FEATURE_SIZE)), np.empty((0, 2))
 
         for ii in np.arange(batch_size):
 
-            feature, label = self.load_sample()
+            feature, label = self.load_sample(all_samples=all_samples)
             features = np.concatenate((features, feature))
             labels = np.concatenate((labels, label))
 

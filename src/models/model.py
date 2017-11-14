@@ -7,7 +7,7 @@ import numpy as np
 from Instacart.src.dataUtils.loading import FEATURE_SIZE
 
 
-def mlp_model(hidden_size, positive_ratio):
+def mlp_model(hidden_size):
 
     model = {}
 
@@ -30,8 +30,8 @@ def mlp_model(hidden_size, positive_ratio):
     model["logits"] = tf.matmul(model["hidden"], model["W_2"]) \
                       + model["b_2"]
 
-    model["loss"] = tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(
-        model["labels"], model["logits"], 1.0 / positive_ratio
+    model["loss"] = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        labels=model["labels"], logits=model["logits"]
     ))
 
     model["reg"] = tf.nn.l2_loss(model["W"]) + tf.nn.l2_loss(model["W_2"])

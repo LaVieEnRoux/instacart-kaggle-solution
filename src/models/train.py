@@ -3,6 +3,7 @@ from __future__ import print_function
 import sys
 import argparse
 from datetime import datetime
+from timeit import default_timer as timer
 
 import tensorflow as tf
 import numpy as np
@@ -20,7 +21,7 @@ def main(_):
 
     # set up model graph
     # model = log_reg_model()
-    model = mlp_model(FLAGS.hidden_size, 10)
+    model = mlp_model(FLAGS.hidden_size)
 
     all_loss = tf.reduce_mean(model["loss"] 
                               + FLAGS.regularization_rate * model["reg"])
@@ -61,11 +62,15 @@ def main(_):
                 batch_x, batch_y = \
                     loader.load_batch(batch_size=FLAGS.batch_size)
 
+               
+                start = timer()
                 _, loss_value, logit_vals, W = sess.run(
                     [optimizer, all_loss, model["logits"], model["W"]],
                     feed_dict={model["input"]: batch_x,
                                model["labels"]: batch_y}
                 )
+                end = timer()
+                print("Time: {}".format((end - start) / float(batch_y.shape[0])))
 
                 if train_iter % FLAGS.train_update == 0:
                     tf.logging.info(
@@ -96,9 +101,7 @@ def main(_):
 
 
             # evaluate on a training batch
-            # batch_x, batch_y = loader.load_batch(batch_size=2 *
-            #                                      FLAGS.batch_size)
-            batch_x, batch_y = loader.load_sample(all_samples=True)
+            batch_x, batch_y = loader.load_batch(batch_size=FLAGS.eval_batch_size, all_samples=True)
             accuracy, preds, W = \
                 sess.run([evaluation_step, prediction, model["W"]],
                          feed_dict={model["input"]: batch_x,
@@ -111,8 +114,11 @@ def main(_):
             precision = sklearn.metrics.precision_score(true_labels, pred_labels)
             recall = sklearn.metrics.recall_score(true_labels, pred_labels)
 
-            F1_score = 2 * (precision * recall) \
-                / (precision + recall)
+            try:
+                F1_score = 2 * (precision * recall) \
+                    / (precision + recall)
+            except:
+                F1_score = 0
 
             tf.logging.info("{}: Epoch {} -- Accuracy: {}".format(
                 datetime.now(), epoch, accuracy
@@ -140,7 +146,11 @@ def main(_):
 
             pred_products = np.where(pred[0] > 0)[0] + 1
             pred_str = " ".join(list(map(str, pred_products)))
-            preds.write("{}\n".format(pred_str))
+
+            if len(pred_products) > 0:
+                preds.write("{}\n".format(pred_str))
+            else:
+                preds.write("None\n")
 
         preds.close()
 
@@ -154,9 +164,14 @@ if __name__ == "__main__":
         default=20
     )
     parser.add_argument(
+        '--eval_batch_size',
+        type=int,
+        default=200
+    )
+    parser.add_argument(
         '--train_iter',
         type=int,
-        default=1000
+        default=300
     )
     parser.add_argument(
         '--valid_iter',
@@ -166,12 +181,12 @@ if __name__ == "__main__":
     parser.add_argument(
         '--hidden_size',
         type=int,
-        default=15
+        default=10
     )
     parser.add_argument(
         '--learning_rate',
         type=float,
-        default=0.01
+        default=0.001
     )
     parser.add_argument(
         '--momentum',
@@ -186,7 +201,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--training_epochs',
         type=int,
-        default=1000
+        default=7
     )
     parser.add_argument(
         '--train_update',
